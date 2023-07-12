@@ -8,6 +8,7 @@ import { TimeframeService } from 'llp-aggregator-services/dist/timeFrame'
 import {
   AggreatedData,
   RequestChart,
+  RequestLiveTimeFrame,
   RequestTimeFrame,
 } from 'llp-aggregator-services/dist/type'
 import { UtilService } from 'llp-aggregator-services/dist/util'
@@ -35,36 +36,10 @@ export class ApiService {
       }
     }
     const result = await this.queryTimeFrames(query)
-    const now = Math.floor(Date.now() / 1000)
-    if (
-      (!query.to || query.to >= now) &&
-      ((query.sort === 'desc' && query.page === 1) ||
-        (query.sort === 'asc' && query.page === result.total))
-    ) {
-      if (query.sort === 'desc') {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[0],
-        )
-        if (live) {
-          result.source = live.concat(result.source)
-        }
-      } else {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[result.source.length - 1],
-        )
-        if (live) {
-          result.source = result.source.concat(live)
-        }
-      }
-    }
     return {
       data: result.source.map((c) => ({
         amount: c.amount,
-        timestamp: Math.min(c.to, now),
+        timestamp: c.to,
         value: c.value,
       })),
       page: {
@@ -86,38 +61,11 @@ export class ApiService {
       }
     }
     const result = await this.queryTimeFrames(query)
-    const now = Math.floor(Date.now() / 1000)
-    if (
-      (!query.to || query.to >= now) &&
-      ((query.sort === 'desc' && query.page === 1) ||
-        (query.sort === 'asc' && query.page === result.total))
-    ) {
-      if (query.sort === 'desc') {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[0],
-        )
-        if (live) {
-          result.source = live.concat(result.source)
-        }
-      } else {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[result.source.length - 1],
-        )
-        if (live) {
-          result.source = result.source.concat(live)
-        }
-      }
-    }
-
     return {
       data: result.source.map((c) => ({
         amount: c.amount,
         amountChange: c.amountChange,
-        timestamp: Math.min(c.to, now),
+        timestamp: c.to,
         totalChange: c.totalChange,
         value: c.value,
         relativeChange: c.relativeChange,
@@ -147,35 +95,9 @@ export class ApiService {
       }
     }
     const result = await this.queryTimeFrames(query)
-    const now = Math.floor(Date.now() / 1000)
-    if (
-      (!query.to || query.to >= now) &&
-      ((query.sort === 'desc' && query.page === 1) ||
-        (query.sort === 'asc' && query.page === result.total))
-    ) {
-      if (query.sort === 'desc') {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[0],
-        )
-        if (live) {
-          result.source = live.concat(result.source)
-        }
-      } else {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[result.source.length - 1],
-        )
-        if (live) {
-          result.source = result.source.concat(live)
-        }
-      }
-    }
     return {
       data: result.source.map((c) => ({
-        timestamp: Math.min(c.to, now),
+        timestamp: c.to,
         nominalApr: c.nomialApr,
         netApr: c.netApr,
       })),
@@ -198,36 +120,9 @@ export class ApiService {
       }
     }
     const result = await this.queryTimeFrames(query)
-    const now = Math.floor(Date.now() / 1000)
-    if (
-      (!query.to || query.to >= now) &&
-      ((query.sort === 'desc' && query.page === 1) ||
-        (query.sort === 'asc' && query.page === result.total))
-    ) {
-      if (query.sort === 'desc') {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[0],
-        )
-        if (live) {
-          result.source = live.concat(result.source)
-        }
-      } else {
-        const live = await this.timeFrameService.buildLiveCheckpoint(
-          query.tranche.toLowerCase(),
-          query.wallet.toLowerCase(),
-          result.source[result.source.length - 1],
-        )
-        if (live) {
-          result.source = result.source.concat(live)
-        }
-      }
-    }
     return {
       data: result.source.map((c) => ({
-        isLive: now < c.to,
-        to: Math.min(c.to, now),
+        to: c.to,
         from: c.from,
         amount: c.amount,
         amountChange: c.amountChange,
@@ -303,6 +198,66 @@ export class ApiService {
       source: results.hits.hits?.map((c) => c._source) || [],
       totalItems,
       total,
+    }
+  }
+
+  async getLiveTimeFrame(query: RequestLiveTimeFrame) {
+    const lastFrame = await this.esService.search<AggreatedData>({
+      size: 1,
+      query: {
+        bool: {
+          must: [
+            {
+              term: {
+                tranche: query.tranche.toLowerCase(),
+              },
+            },
+            {
+              term: {
+                wallet: query.wallet.toLowerCase(),
+              },
+            },
+          ],
+        },
+      },
+      sort: {
+        to: 'desc',
+      },
+    })
+    if (!lastFrame.hits.hits?.length) {
+      return {
+        data: undefined,
+      }
+    }
+    const live = await this.timeFrameService.buildLiveCheckpoint(
+      query.tranche.toLowerCase(),
+      query.wallet.toLowerCase(),
+      lastFrame.hits.hits[0]._source,
+    )
+    if (!live) {
+      return {
+        data: undefined,
+      }
+    }
+    return {
+      data: {
+        to: Math.floor(Date.now() / 1000),
+        from: live.from,
+        amount: live.amount,
+        amountChange: live.amountChange,
+        value: live.value,
+        totalChange: live.totalChange,
+        price: live.price,
+        relativeChange: live.relativeChange,
+        valueMovement: {
+          fee: live.valueMovement?.fee,
+          pnl: live.valueMovement?.pnl,
+          price: live.valueMovement?.price,
+          valueChange: live.valueMovement?.valueChange,
+        },
+        nominalApr: live.nomialApr,
+        netApr: live.netApr,
+      },
     }
   }
 
