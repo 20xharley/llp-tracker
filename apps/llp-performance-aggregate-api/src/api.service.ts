@@ -7,6 +7,7 @@ import { RedisService } from 'llp-aggregator-services/dist/queue'
 import { TimeframeService } from 'llp-aggregator-services/dist/timeFrame'
 import {
   AggreatedData,
+  AggreatedDataHistory,
   RequestChart,
   RequestLiveTimeFrame,
   RequestTimeFrame,
@@ -224,15 +225,38 @@ export class ApiService {
         to: 'desc',
       },
     })
-    if (!lastFrame.hits.hits?.length) {
-      return {
-        data: undefined,
-      }
+    let histories: AggreatedDataHistory[] = []
+    if (lastFrame.hits.hits?.length && lastFrame.hits.hits[0]._source.amount) {
+      histories = lastFrame.hits.hits[0]._source.histories
+    } else {
+      const prevCron = this.timeFrameService.getPrevCronCheckpoint(
+        Math.floor(Date.now() / 1000),
+      )
+      histories = [
+        {
+          amount: 0,
+          amountChange: 0,
+          block: undefined,
+          isCron: true,
+          isRemove: false,
+          price: 0,
+          timestamp: prevCron,
+          totalChange: 0,
+          tx: undefined,
+          value: 0,
+          valueMovement: {
+            fee: 0,
+            pnl: 0,
+            price: 0,
+            valueChange: 0,
+          },
+        },
+      ]
     }
     const live = await this.timeFrameService.buildLiveCheckpoint(
       query.tranche.toLowerCase(),
       query.wallet.toLowerCase(),
-      lastFrame.hits.hits[0]._source,
+      histories,
     )
     if (!live) {
       return {
