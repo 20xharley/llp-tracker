@@ -88,6 +88,10 @@ export class UtilService {
     return data.filter((c, i) => data.indexOf(c) === i)
   }
 
+  get chainId():number {
+    return this.configService.get<number>('chainConfig.chainId');
+  }
+
   constructor(private readonly configService: ConfigService) {}
 
   parseBigNumber(value: BigNumberish, decimals: number) {
@@ -97,83 +101,85 @@ export class UtilService {
     return parseFloat(formatUnits(BigNumber.from(value), decimals))
   }
 
-  getCheckpointLastSyncedKey(tranche: string) {
-    return `${this.app}:${this.version}:${
+  getCheckpointLastSyncedKey(tranche: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:crawler:${tranche.toLowerCase()}:checkPoint`
+    }:crawler:${tranche.toLowerCase()}:checkPoint`;
   }
 
-  getFeePerSharesLastSyncedKey(tranche: string) {
-    return `${this.app}:${this.version}:${
+  getFeePerSharesLastSyncedKey(tranche: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:crawler:${tranche.toLowerCase()}:fee_per_shares`
+    }:crawler:${tranche.toLowerCase()}:fee_per_shares`;
   }
 
-  getPnLPerSharesLastSyncedKey(tranche: string) {
-    return `${this.app}:${this.version}:${
+  getPnLPerSharesLastSyncedKey(tranche: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:crawler:${tranche.toLowerCase()}:pnl_per_shares`
+    }:crawler:${tranche.toLowerCase()}:pnl_per_shares`;
   }
 
   getTranchePerSharesSummaryKey(prefix: string, timestamp: number | string) {
-    return `${prefix}:${timestamp}`
+    return `${prefix}:${timestamp}`;
   }
 
-  getWalletsKey(tranche: string) {
-    return `${this.app}:${this.version}:${
+  getWalletsKey(tranche: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:tranche:${tranche.toLowerCase()}:wallets`
+    }:tranche:${tranche.toLowerCase()}:wallets`;
   }
 
-  getPendingWalletsKey(tranche: string) {
-    return `${this.app}:${this.version}:${
+  getPendingWalletsKey(tranche: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:tranche:${tranche.toLowerCase()}:pending_wallets`
+    }:tranche:${tranche.toLowerCase()}:pending_wallets`;
   }
 
-  getTimestampKey(tranche: string, wallet: string) {
-    return `${this.app}:${this.version}:${
+  getTimestampKey(tranche: string, wallet: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:tranche:${tranche.toLowerCase()}:timestamp:${wallet.toLowerCase()}`
+    }:tranche:${tranche.toLowerCase()}:timestamp:${wallet.toLowerCase()}`;
   }
 
-  getCronCheckpointKey() {
-    return `${this.app}:${this.version}:${this.env}:checkPoints`
+  getCronCheckpointKey(chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${this.env}:checkPoints`;
   }
 
-  getTranchePriceKey(tranche: string) {
-    return `${this.app}:${this.version}:${
+  getTranchePriceKey(tranche: string, chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:tranche:${tranche.toLowerCase()}:prices`
+    }:tranche:${tranche.toLowerCase()}:prices`;
   }
 
-  getBlockSyncedKey() {
-    return `${this.app}:${this.version}:${this.env}:last_synced`
+  getBlockSyncedKey(chainId = this.chainId) {
+    return `${this.app}:${chainId}:${this.version}:${this.env}:last_synced`;
   }
 
   getCheckpointValueSummaryKey(
     tranche: string,
     wallet: string,
     timestamp: number | string,
+    chainId = this.chainId
   ) {
-    return `${this.app}:${this.version}:${
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:tranche:${tranche.toLowerCase()}:checkpoint_values:${wallet.toLowerCase()}:${timestamp}`
+    }:tranche:${tranche.toLowerCase()}:checkpoint_values:${wallet.toLowerCase()}:${timestamp}`;
   }
 
   getCheckpointAmountSummaryKey(
     tranche: string,
     wallet: string,
     timestamp: number | string,
+    chainId = this.chainId
   ) {
-    return `${this.app}:${this.version}:${
+    return `${this.app}:${chainId}:${this.version}:${
       this.env
-    }:tranche:${tranche.toLowerCase()}:checkpoint_amounts:${wallet.toLowerCase()}:${timestamp}`
+    }:tranche:${tranche.toLowerCase()}:checkpoint_amounts:${wallet.toLowerCase()}:${timestamp}`;
   }
 
-  generateAggregatedId(item: AggreatedData) {
-    const based = `${item.wallet}_${item.tranche}_${item.from}_${item.to}_${item.valueMovement.fee}_${item.valueMovement.pnl}_${item.valueMovement.price}`
-    return utils.id(based)
+  generateAggregatedId(item: AggreatedData, chainId = this.chainId) {
+    const based = `${item.wallet}_${chainId}_${item.tranche}_${item.from}_${item.to}_${item.valueMovement.fee}_${item.valueMovement.pnl}_${item.valueMovement.price}`;
+    return utils.id(based);
   }
 
   generateCheckpointId(item: CheckpointResponse) {
