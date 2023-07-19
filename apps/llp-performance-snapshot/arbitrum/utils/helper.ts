@@ -1,8 +1,8 @@
-import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts';
-import { Oracle } from '../generated/Oracle/Oracle';
-import { PriceFeed } from '../generated/Oracle/PriceFeed';
-import { Pool } from '../generated/Pool/Pool';
-import { PoolLens } from '../generated/Pool/PoolLens';
+import { Address, BigInt, ethereum } from "@graphprotocol/graph-ts";
+import { Oracle } from "../generated/Oracle/Oracle";
+import { PriceFeed } from "../generated/Oracle/PriceFeed";
+import { Pool } from "../generated/Pool/Pool";
+import { PoolLens } from "../generated/Pool/PoolLens";
 import {
   Config,
   LlpPrice,
@@ -11,9 +11,9 @@ import {
   Tranche,
   WalletTranche,
   WalletTrancheHistory,
-} from '../generated/schema';
-import { config } from './config';
-import { FEE_PRECISION, NEGATIVE_ONE, ZERO } from './constant';
+} from "../generated/schema";
+import { config } from "./config";
+import { FEE_PRECISION, NEGATIVE_ONE, ZERO } from "./constant";
 
 export function emptyArray<T>(size: number, v?: T): T[] {
   const ret: T[] = [];
@@ -31,9 +31,9 @@ export function getDayId(timestamp: BigInt): BigInt {
 }
 
 export function loadOrCreateConfig(): Config {
-  let entity = Config.load('config');
+  let entity = Config.load("config");
   if (!entity) {
-    entity = new Config('config');
+    entity = new Config("config");
     const pool = Pool.bind(config.pool);
     const daoFee = pool.try_daoFee();
     entity.daoFeeRatio = daoFee.reverted ? ZERO : daoFee.value;
@@ -42,8 +42,13 @@ export function loadOrCreateConfig(): Config {
   return entity;
 }
 
-export function loadOrCreateWalletTranche(wallet: Address, tranche: Address): WalletTranche {
-  let walletTranche = WalletTranche.load(`${wallet.toHex()}-${tranche.toHex()}`);
+export function loadOrCreateWalletTranche(
+  wallet: Address,
+  tranche: Address,
+): WalletTranche {
+  let walletTranche = WalletTranche.load(
+    `${wallet.toHex()}-${tranche.toHex()}`,
+  );
   if (!walletTranche) {
     walletTranche = new WalletTranche(`${wallet.toHex()}-${tranche.toHex()}`);
     walletTranche.tranche = tranche;
@@ -58,12 +63,16 @@ export function loadOrCreateWalletTrancheHistory(
   tranche: Address,
   block: BigInt,
 ): WalletTrancheHistory {
-  let history = WalletTrancheHistory.load(`${wallet.toHex()}-${tranche.toHex()}-${block}`);
+  let history = WalletTrancheHistory.load(
+    `${wallet.toHex()}-${tranche.toHex()}-${block}`,
+  );
   if (!history) {
     const trancheEntity = loadOrCreateTranche(tranche);
     trancheEntity.lastHistoryIndex++;
     trancheEntity.save();
-    history = new WalletTrancheHistory(`${wallet.toHex()}-${tranche.toHex()}-${block}`);
+    history = new WalletTrancheHistory(
+      `${wallet.toHex()}-${tranche.toHex()}-${block}`,
+    );
     history.tranche = tranche;
     history.wallet = wallet;
     history.llpAmount = ZERO;
@@ -81,7 +90,9 @@ export function loadOrCreateRiskFactor(indexToken: Address): RiskFactor {
     riskFactorConfig = new RiskFactor(indexToken.toHex());
     riskFactorConfig.token = indexToken;
     const totalRiskFactor = pool.try_totalRiskFactor(indexToken);
-    riskFactorConfig.totalRiskFactor = totalRiskFactor.reverted ? ZERO : totalRiskFactor.value;
+    riskFactorConfig.totalRiskFactor = totalRiskFactor.reverted
+      ? ZERO
+      : totalRiskFactor.value;
     let riskFactors = emptyArray<BigInt>(tranches.length, ZERO);
     for (let i = 0; i < tranches.length; i++) {
       const tranche = tranches[i];
@@ -109,7 +120,12 @@ export function loadOrCreateTranche(tranche: Address): Tranche {
   return entity;
 }
 
-export function loadOrCreatePriceStat(id: string, token: Address, period: string, timestamp: BigInt): Price {
+export function loadOrCreatePriceStat(
+  id: string,
+  token: Address,
+  period: string,
+  timestamp: BigInt,
+): Price {
   let entity = Price.load(id);
   if (entity === null) {
     entity = new Price(id);
@@ -123,33 +139,30 @@ export function loadOrCreatePriceStat(id: string, token: Address, period: string
 
 export function _calcReturnFee(feeValue: BigInt): BigInt {
   const config = loadOrCreateConfig();
-  return feeValue.times(FEE_PRECISION.minus(config.daoFeeRatio)).div(FEE_PRECISION);
+  return feeValue
+    .times(FEE_PRECISION.minus(config.daoFeeRatio))
+    .div(FEE_PRECISION);
 }
 
 export function _calcTotalFee(daoFeeValue: BigInt): BigInt {
   const config = loadOrCreateConfig();
+  if (config == null) {
+    return ZERO;
+  }
   return daoFeeValue.times(FEE_PRECISION).div(config.daoFeeRatio);
 }
 
-export function _getPrice(token: Address, block: BigInt): BigInt {
+export function _getPrice(token: Address): BigInt {
   const entity = Price.load(`total-${token.toHex()}`);
   if (!entity) {
-    const oracle = Oracle.bind(config.oracle);
-    const pricefeed = PriceFeed.bind(config.oracle);
-    if (block.ge(config.oracle_block_update)) {
-      const price = oracle.try_getPrice(token, true);
-      return price.reverted ? ZERO : price.value;
-    } else {
-      const price = pricefeed.try_getPrice(token);
-      return price.reverted ? ZERO : price.value;
-    }
+    return ZERO;
   }
   return entity.value;
 }
 
 export function _calcTrancheValue(
   tranche: Address,
-  block: BigInt
+  block: BigInt,
 ): BigInt | null {
   const poolLensContract = PoolLens.bind(config.poolLens);
   const trancheValue = poolLensContract.try_getTrancheValue(tranche);
@@ -164,7 +177,11 @@ export function _snapshotLlpPrice(block: BigInt, timestamp: BigInt): void {
     const tranche = config.tranches[i];
     const trancheValue = _calcTrancheValue(tranche, block);
     const trancheEntity = Tranche.load(tranche.toHex());
-    if (!trancheEntity || !trancheValue || trancheEntity.llpSupply.equals(ZERO)) {
+    if (
+      !trancheEntity ||
+      !trancheValue ||
+      trancheEntity.llpSupply.equals(ZERO)
+    ) {
       continue;
     }
     const llpPrice = trancheValue.div(trancheEntity.llpSupply);
@@ -175,11 +192,23 @@ export function _snapshotLlpPrice(block: BigInt, timestamp: BigInt): void {
     llpPriceHistory.snapshotAtTimestamp = timestamp.toI32();
     llpPriceHistory.save();
 
-    _storePriceByType(`day-${getDayId(timestamp)}-${tranche.toHex()}`, tranche, llpPrice, getDayId(timestamp), 'daily');
+    _storePriceByType(
+      `day-${getDayId(timestamp)}-${tranche.toHex()}`,
+      tranche,
+      llpPrice,
+      getDayId(timestamp),
+      "daily",
+    );
   }
 }
 
-export function _storePriceByType(id: string, token: Address, value: BigInt, timestamp: BigInt, period: string): void {
+export function _storePriceByType(
+  id: string,
+  token: Address,
+  value: BigInt,
+  timestamp: BigInt,
+  period: string,
+): void {
   const entity = loadOrCreatePriceStat(id, token, period, getDayId(timestamp));
   entity.value = value;
   entity.token = token;
@@ -188,7 +217,13 @@ export function _storePriceByType(id: string, token: Address, value: BigInt, tim
   entity.save();
 }
 
-export function trackLp(user: Address, tranche: Address, ev: ethereum.Event, delta: BigInt, isIncrease: bool): void {
+export function trackLp(
+  user: Address,
+  tranche: Address,
+  ev: ethereum.Event,
+  delta: BigInt,
+  isIncrease: boolean,
+): void {
   const trancheEntity = loadOrCreateTranche(tranche);
   const walletTranche = loadOrCreateWalletTranche(user, tranche);
 
@@ -198,13 +233,19 @@ export function trackLp(user: Address, tranche: Address, ev: ethereum.Event, del
   }
 
   // save history
-  const walletTrancheHistory = loadOrCreateWalletTrancheHistory(user, tranche, ev.block.number);
+  const walletTrancheHistory = loadOrCreateWalletTrancheHistory(
+    user,
+    tranche,
+    ev.block.number,
+  );
   if (isIncrease) {
     walletTranche.llpAmount = walletTranche.llpAmount.plus(delta);
-    walletTrancheHistory.llpAmountChange = walletTrancheHistory.llpAmountChange.plus(delta);
+    walletTrancheHistory.llpAmountChange =
+      walletTrancheHistory.llpAmountChange.plus(delta);
   } else {
     walletTranche.llpAmount = walletTranche.llpAmount.minus(delta);
-    walletTrancheHistory.llpAmountChange = walletTrancheHistory.llpAmountChange.plus(delta.times(NEGATIVE_ONE));
+    walletTrancheHistory.llpAmountChange =
+      walletTrancheHistory.llpAmountChange.plus(delta.times(NEGATIVE_ONE));
   }
   walletTrancheHistory.llpPrice = trancheValue.div(trancheEntity.llpSupply);
   walletTrancheHistory.llpAmount = walletTranche.llpAmount;

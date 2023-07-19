@@ -21,7 +21,7 @@ import {
   _snapshotLlpPrice,
 } from "../utils/helper";
 import { BigInt } from "@graphprotocol/graph-ts";
-import { ACC_PRECISION, NEGATIVE_ONE, ONE, ZERO } from "../utils/constant";
+import { ACC_PRECISION, ONE, ZERO } from "../utils/constant";
 import { FeePerShare, PnlPerShare } from "../generated/schema";
 
 export function handlePositionIncreased(ev: IncreasePosition): void {
@@ -174,12 +174,9 @@ export function handlePositionLiquidated(ev: LiquidatePosition): void {
 }
 
 export function handleLiquidityAdded(ev: LiquidityAdded): void {
-  const tokenPrice = _getPrice(ev.params.token, ev.block.number);
+  const tokenPrice = _getPrice(ev.params.token);
   const feeValue = tokenPrice.times(ev.params.fee);
-  const realizedFeeValue = ev.block.number.ge(config.dao_fee_block_update)
-    ? _calcTotalFee(feeValue)
-    : feeValue;
-  const share = _calcReturnFee(realizedFeeValue);
+  const share = _calcReturnFee(feeValue);
   let tranche = loadOrCreateTranche(ev.params.tranche);
   if (tranche.llpSupply.equals(ZERO)) {
     return;
@@ -207,12 +204,9 @@ export function handleLiquidityAdded(ev: LiquidityAdded): void {
 }
 
 export function handleLiquidityRemoved(ev: LiquidityRemoved): void {
-  const tokenPrice = _getPrice(ev.params.token, ev.block.number);
+  const tokenPrice = _getPrice(ev.params.token);
   const feeValue = tokenPrice.times(ev.params.fee);
-  const realizedFeeValue = ev.block.number.ge(config.dao_fee_block_update)
-    ? _calcTotalFee(feeValue)
-    : feeValue;
-  const share = _calcReturnFee(realizedFeeValue);
+  const share = _calcReturnFee(feeValue);
   let tranche = loadOrCreateTranche(ev.params.tranche);
   if (tranche.llpSupply.equals(ZERO)) {
     return;
@@ -240,7 +234,7 @@ export function handleLiquidityRemoved(ev: LiquidityRemoved): void {
 }
 
 export function handleSwap(ev: Swap): void {
-  const tokenInPrice = _getPrice(ev.params.tokenIn, ev.block.number);
+  const tokenInPrice = _getPrice(ev.params.tokenIn);
   const feeValue = tokenInPrice.times(ev.params.fee);
   const feeReturn = _calcReturnFee(feeValue);
   const riskFactorConfig = loadOrCreateRiskFactor(ev.params.tokenIn);
